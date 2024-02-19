@@ -1,0 +1,111 @@
+import Account
+import sqlalchemy
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import ForeignKey
+from sqlalchemy import Float
+from sqlalchemy import create_engine
+from sqlalchemy import select
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+
+
+class Client(Base):
+    __tablename__ = "client"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(10))
+    cpf = Column(String(10))
+    address = Column(String(30))
+
+    def __repr__(self):
+        return f"Client(id={self.id}, name={self.name}, address={self.address})"
+
+
+
+
+class Account(Base):
+    __tablename__ = "account"
+    id = Column(Integer, primary_key=True)
+    type = Column(String(2))
+    agency = Column(String)
+    num = Column(Integer)
+    id_cliente = Column(Integer, ForeignKey("client_account.id"), nullable=False)
+    balance = Column(Float)
+
+    def __repr__(self):
+        return f"Account(id={self.id}, tipo={self.type}, saldo={self.balance})"
+
+    # Conecta ao banco de dados sqlite
+    engine = create_engine("sqlite://")
+
+    # Cria tables no banco de dados
+    Base.metadata.create_all(engine)
+
+    # Faz a persistência das Informações no Banco de Dados SQLite
+    with Session(engine) as session:
+        willian = Client(name='willian bonfim',
+                         cpf='153.256.546.5',
+                         address='Rua 1, número 10'
+                         )
+
+        fred = Client(name='fred junior',
+                       cpf='233.486.789.55',
+                       address='Rua 3, número 500'
+                       )
+
+        maria = Client(name='maria da Silva',
+                         cpf='123.456.789.44',
+                         address='Rua 5, número 210'
+                         )
+
+        account1 = Account(client_id='1',
+                           type='cc',
+                           agency=1001,
+                           number=10001,
+                           balance=5000
+                           )
+        account2 = Account(client_id='2',
+                           type='cp',
+                           agency=1001,
+                           number=20001,
+                           balance=15000
+                           )
+        account3 = Account(client_id='3',
+                           type='cc',
+                           agency=1001,
+                           number=10002,
+                           balance=1000
+                           )
+
+        # Envia as informações para o BD (persitência de dados)
+        session.add_all([willian, fred, maria])
+        session.add_all([account1, account2, account3])
+        session.commit()
+
+    # Consulta as Informações Salvas no Banco de Dados SQLite
+
+    print('Recuperando clientes a partir de uma condição de filtragem:')
+    stmt_clients = select(Client).where(Client.name.in_(['Matheus Lopes', 'Patrick da Silva']))
+    for result in session.scalars(stmt_clients):
+        print(result)
+
+    print("\nRecuperando clientes de maneira ordenada:")
+    stmt_order = select(Client).order_by(Client.name.desc())
+    for result in session.scalars(stmt_order):
+        print(result)
+
+    print("\nRecuperando contas de maneira ordenada:")
+    stmt_accounts = select(Account).order_by(Account.tipo.desc())
+    for result in session.scalars(stmt_accounts):
+        print(result)
+
+    print("\nRecuperando contas e clientes:")
+    stmt_join = select(Client.name, Account.tipo, Account.balance).join_from(Client, Account)
+    connection = engine.connect()
+    results = connection.execute(stmt_join).fetchall()
+    for result in results:
+        print(result)
+
+    session.close()
